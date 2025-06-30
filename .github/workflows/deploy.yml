@@ -17,20 +17,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install zip
-      run: |
-        cd lambda
-        zip -r ../resize.zip .
-
-    - name: Upload Lambda to S3
-      run: |
-        aws s3 cp resize.zip s3://my-photo-blog-uploads/lambda/resize.zip
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: us-east-1
-
-    - name: Deploy CloudFormation Stack
+    - name: Deploy CloudFormation Stack (Buckets & Infra)
       run: |
         aws cloudformation deploy \
           --template-file templates/cloudformation.yaml \
@@ -39,4 +26,18 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: us-east-1
+        AWS_REGION: eu-north-1
+
+    - name: Zip Lambda code
+      run: |
+        cd lambda
+        zip -r ../resize.zip .
+        cd ..
+
+    - name: Upload Lambda zip to S3
+      run: |
+        aws s3 cp resize.zip s3://my-photo-blog-uploads/lambda/resize.zip
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: eu-north-1
