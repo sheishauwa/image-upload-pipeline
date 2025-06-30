@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Image Upload Deployment
 
 on:
   push:
@@ -8,35 +8,60 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION: eu-north-1
+      ARTIFACT_BUCKET: my-photo-blog-uploads  # ✅ Your target bucket name
+
     steps:
-    - name: Checkout Code
+    - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install zip
+    - name: Install Pillow and zip Lambda
       run: |
+        pip install pillow -t lambda/
         cd lambda
         zip -r ../resize.zip .
+      shell: bash
 
-    - name: Upload Lambda to S3
+    - name: Create artifact bucket if it doesn't exist
       run: |
-        aws s3 cp resize.zip s3://my-photo-blog-uploads/lambda/resize.zip
+        aws s3api head-bucket --bucket $ARTIFACT_BUCKET 2>/dev/null || \
+        aws s3 mb s3://$ARTIFACT_BUCKET --region $AWS_REGION
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: us-east-1
 
-    - name: Deploy CloudFormation Stack
+    - name: Upload Lambda ZIP to S3
+      run: |
+        aws s3 cp resize.zip s3://$ARTIFACT_BUCKET/lambda/resize.zip --region $AWS_REGION
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    - name: Deploy CloudFormation stack
       run: |
         aws cloudformation deploy \
           --template-file templates/cloudformation.yaml \
           --stack-name ImageUploadStack \
-          --capabilities CAPABILITY_NAMED_IAM
+          --capabilities CAPABILITY_NAMED_IAM \
+          --parameter-overrides \
+            UploadBucketName=image-upload-raw-hauwa \
+            ProcessedBucketName=image-upload-processed-hauwa \
+            ArtifactBucketName=$ARTIFACT_BUCKET \
+            ArtifactKey=lambda/resize.zip \
+          --region $AWS_REGION
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: us-east-1
+
+    - name: Debug CloudFormation stack on failure
+      if: failure()
+      run: |
+        echo "=== CloudFormation Error Logs ==="
+        aws cloudformation describe-stack-events \
+          --stack-name ImageUploadStack \
+          --region $AWS_REGION \
+          --max-items 10
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
