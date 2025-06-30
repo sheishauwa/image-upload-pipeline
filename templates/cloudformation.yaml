@@ -3,7 +3,6 @@ Description: Image Upload & Resize Pipeline using S3 + Lambda
 
 Parameters:
   UploadBucketName:
-
     Type: String
     Description: Bucket name where users upload original images
   ProcessedBucketName:
@@ -21,25 +20,16 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref UploadBucketName
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:Put
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-            Function: !GetAtt LambdaFunction.Arn
 
   ProcessedBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref ProcessedBucketName
 
-   LambdaExecutionRole:
+  LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: image-processing-lambda-role-v2  # ← updated name
+      RoleName: image-processing-lambda-role-v2
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -65,7 +55,6 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "*"
-
 
   LambdaFunction:
     Type: AWS::Lambda::Function
