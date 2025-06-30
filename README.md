@@ -1,16 +1,37 @@
-# 🖼️ Image Upload & Processing Pipeline
+# 📸 Image Upload & Processing Pipeline on AWS
 
-This project enables users to upload images to an S3 bucket, which automatically triggers an AWS Lambda function that resizes the image and stores it in another bucket for optimized display.
+This project builds a serverless image processing pipeline using:
 
-## 🌐 Architecture
+- S3 for uploads
+- Lambda for image resizing (Python + Pillow)
+- CloudFormation for infrastructure
+- GitHub Actions for CI/CD
 
-- Upload S3 Bucket
-- Lambda Function (Python + Pillow)
-- Output S3 Bucket
-- Deployed via GitHub Actions and AWS CloudFormation
+## 🛠️ Tech Stack
 
-## 🚀 Deployment
+- AWS S3 (raw & processed buckets)
+- AWS Lambda (Python 3.11)
+- CloudFormation
+- GitHub Actions
 
-1. Create IAM user with permissions
-2. Add `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to GitHub Secrets
-3. Push to `main` branch — deployment auto-triggers
+## 🚀 Deploy Instructions
+
+### 1. Set Up AWS & GitHub
+- Create an IAM user and save keys
+- Add to GitHub repo secrets:
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+
+### 2. Push Code
+- Push to `main` branch.
+- GitHub Actions:
+  - Zips lambda
+  - Uploads to S3
+  - Deploys CloudFormation
+
+## 🧪 Test It
+Upload any image to your `image-upload-raw-hauwa` bucket. The resized image will appear in `image-upload-processed-hauwa`.
+
+## 🖼️ Architecture
+
+![Architecture Diagram](https://res.cloudinary.com/practicaldev/image/fetch/s--FCbciWoH--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/uploads/articles/tg4rtbf33td6sqkq1wd9.png)
