@@ -22,9 +22,10 @@ jobs:
         zip -r ../resize.zip .
       shell: bash
 
-    - name: Upload Lambda ZIP to S3
+        - name: Upload Lambda ZIP to S3
       run: |
-        aws s3 cp resize.zip s3://my-photo-blog-uploads/lambda/resize.zip
+        aws s3 cp resize.zip s3://hauwa-lambda-artifacts/resize.zip
+
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
