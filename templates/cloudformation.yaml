@@ -1,14 +1,33 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Description: Image Upload and Processing Pipeline with S3 and Lambda
+
+Parameters:
+  UploadBucketName:
+    Type: String
+    Description: Name of the raw image upload S3 bucket
+
+  ProcessedBucketName:
+    Type: String
+    Description: Name of the processed/resized image S3 bucket
+
+  ArtifactBucketName:
+    Type: String
+    Description: Bucket name where the Lambda zip is stored
+
+  ArtifactKey:
+    Type: String
+    Description: Path to the Lambda function zip file in S3
+
 Resources:
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: my-photo-blog-uploads
+      BucketName: !Ref UploadBucketName
 
   ProcessedBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: my-photo-blog-processed
+      BucketName: !Ref ProcessedBucketName
 
   LambdaRole:
     Type: AWS::IAM::Role
@@ -19,15 +38,23 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: [lambda.amazonaws.com]
-            Action: ['sts:AssumeRole']
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
       Policies:
-        - PolicyName: S3Access
+        - PolicyName: S3AccessPolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
-                Action: ["s3:*", "logs:*"]
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
                 Resource: "*"
 
   ImageProcessorFunction:
@@ -39,14 +66,14 @@ Resources:
       Timeout: 10
       Role: !GetAtt LambdaRole.Arn
       Code:
-        S3Bucket: my-photo-blog-uploads
-        S3Key: lambda/resize.zip
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: !Ref ArtifactKey
       Environment:
         Variables:
-          SOURCE_BUCKET: my-photo-blog-uploads
-          DEST_BUCKET: my-photo-blog-processed
+          SOURCE_BUCKET: !Ref UploadBucketName
+          DEST_BUCKET: !Ref ProcessedBucketName
 
-  S3Event:
+  LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref ImageProcessorFunction
@@ -56,6 +83,13 @@ Resources:
 
 Outputs:
   UploadBucket:
-    Value: !Ref UploadBucket
+    Description: The raw image upload S3 bucket
+    Value: !Ref UploadBucketName
+
   ProcessedBucket:
-    Value: !Ref ProcessedBucket
+    Description: The processed image output S3 bucket
+    Value: !Ref ProcessedBucketName
+
+  LambdaFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref ImageProcessorFunction
