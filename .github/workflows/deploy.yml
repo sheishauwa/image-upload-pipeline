@@ -8,36 +8,34 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION: eu-north-1
+
     steps:
-    - name: Checkout Code
+    - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Deploy CloudFormation Stack (Buckets & Infra)
+    - name: Install dependencies & zip Lambda
       run: |
-        aws cloudformation deploy \
-          --template-file templates/cloudformation.yaml \
-          --stack-name ImageUploadStack \
-          --capabilities CAPABILITY_NAMED_IAM
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: eu-north-1
-
-    - name: Zip Lambda code
-      run: |
+        pip install pillow -t lambda/
         cd lambda
         zip -r ../resize.zip .
-        cd ..
+      shell: bash
 
-    - name: Upload Lambda zip to S3
+    - name: Upload Lambda ZIP to S3
       run: |
         aws s3 cp resize.zip s3://my-photo-blog-uploads/lambda/resize.zip
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: eu-north-1
+
+    - name: Deploy CloudFormation stack
+      run: |
+        aws cloudformation deploy \
+          --template-file templates/cloudformation.yaml \
+          --stack-name ImageUploadStack \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --parameter-overrides UploadBucketName=my-photo-blog-uploads ProcessedBucketName=my-photo-blog-processed
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
