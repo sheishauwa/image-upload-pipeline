@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Full Deploy - S3 Bucket + Lambda + CloudFormation
 
 on:
   push:
@@ -10,22 +10,30 @@ jobs:
 
     env:
       AWS_REGION: eu-north-1
+      ARTIFACT_BUCKET: image-upload-artifacts-hauwa
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install dependencies & zip Lambda
+    - name: Install Pillow and zip Lambda
       run: |
         pip install pillow -t lambda/
         cd lambda
         zip -r ../resize.zip .
       shell: bash
 
-        - name: Upload Lambda ZIP to S3
+    - name: Create Artifact Bucket if not exists
       run: |
-        aws s3 cp resize.zip s3://hauwa-lambda-artifacts/resize.zip
+        aws s3api head-bucket --bucket $ARTIFACT_BUCKET 2>/dev/null || \
+        aws s3 mb s3://$ARTIFACT_BUCKET --region $AWS_REGION
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+    - name: Upload Lambda ZIP to S3
+      run: |
+        aws s3 cp resize.zip s3://$ARTIFACT_BUCKET/resize.zip --region $AWS_REGION
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -36,7 +44,12 @@ jobs:
           --template-file templates/cloudformation.yaml \
           --stack-name ImageUploadStack \
           --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides UploadBucketName=my-photo-blog-uploads ProcessedBucketName=my-photo-blog-processed
+          --parameter-overrides \
+            UploadBucketName=image-upload-raw-hauwa \
+            ProcessedBucketName=image-upload-processed-hauwa \
+            ArtifactBucketName=$ARTIFACT_BUCKET \
+            ArtifactKey=resize.zip \
+          --region $AWS_REGION
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
