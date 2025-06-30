@@ -1,62 +1,86 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Serverless image processing pipeline using S3 and Lambda
+
+Parameters:
+  UploadBucketName:
+    Type: String
+    Default: my-photo-blog-uploads
+  ProcessedBucketName:
+    Type: String
+    Default: my-photo-blog-processed
+
 Resources:
+
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: my-photo-blog-uploads
+      BucketName: !Ref UploadBucketName
 
   ProcessedBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: my-photo-blog-processed
+      BucketName: !Ref ProcessedBucketName
 
-  LambdaRole:
+  LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: photoProcessorLambdaRole
+      RoleName: image-processing-lambda-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              Service: [lambda.amazonaws.com]
-            Action: ['sts:AssumeRole']
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
       Policies:
         - PolicyName: S3Access
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
-                Action: ["s3:*", "logs:*"]
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
                 Resource: "*"
 
-  ImageProcessorFunction:
+  LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: ImageResizerFunction
+      FunctionName: image-resizer
       Handler: resize.lambda_handler
       Runtime: python3.11
       Timeout: 10
-      Role: !GetAtt LambdaRole.Arn
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: my-photo-blog-uploads
+        S3Bucket: !Ref UploadBucketName
         S3Key: lambda/resize.zip
       Environment:
         Variables:
-          SOURCE_BUCKET: my-photo-blog-uploads
-          DEST_BUCKET: my-photo-blog-processed
+          SOURCE_BUCKET: !Ref UploadBucketName
+          DEST_BUCKET: !Ref ProcessedBucketName
 
-  S3Event:
+  LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref ImageProcessorFunction
+      FunctionName: !Ref LambdaFunction
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
-      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt UploadBucket.Arn
+
+  S3EventNotification:
+    Type: Custom::S3Event
+    DependsOn: LambdaInvokePermission
+    Properties:
+      ServiceToken: !GetAtt LambdaFunction.Arn
 
 Outputs:
   UploadBucket:
-    Value: !Ref UploadBucket
+    Value: !Ref UploadBucketName
   ProcessedBucket:
-    Value: !Ref ProcessedBucket
-
+    Value: !Ref ProcessedBucketName
+  LambdaFunctionName:
+    Value: !Ref LambdaFunction
