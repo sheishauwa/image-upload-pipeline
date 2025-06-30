@@ -10,25 +10,16 @@ Parameters:
     Description: Bucket name for resized images
   ArtifactBucketName:
     Type: String
-    Description: S3 bucket name where the Lambda ZIP is stored
+    Description: S3 bucket where Lambda ZIP is stored
   ArtifactKey:
     Type: String
-    Description: Key (path) to the Lambda ZIP in the artifact bucket
+    Description: Path to Lambda ZIP in the artifact bucket
 
 Resources:
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref UploadBucketName
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:Put
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-            Function: !GetAtt LambdaFunction.Arn
 
   ProcessedBucket:
     Type: AWS::S3::Bucket
@@ -91,6 +82,20 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
       SourceArn: !Sub arn:aws:s3:::${UploadBucketName}
+
+  S3LambdaTrigger:
+    Type: AWS::S3::BucketNotification
+    Properties:
+      Bucket: !Ref UploadBucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpg
+            Function: !GetAtt LambdaFunction.Arn
 
 Outputs:
   UploadBucket:
