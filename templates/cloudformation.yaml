@@ -36,10 +36,10 @@ Resources:
     Properties:
       BucketName: !Ref ProcessedBucketName
 
-  LambdaExecutionRole:
+   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: image-processing-lambda-role
+      RoleName: image-processing-lambda-role-v2  # ← updated name
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -65,6 +65,7 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "*"
+
 
   LambdaFunction:
     Type: AWS::Lambda::Function
