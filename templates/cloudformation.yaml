@@ -17,19 +17,28 @@ Parameters:
 
 Resources:
 
-  # 🚀 1. S3 Bucket: Upload (Raw)
+  # 1️⃣ S3 Bucket for raw image uploads
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref UploadBucketName
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpg
+            Function: !GetAtt LambdaFunction.Arn
 
-  # 📦 2. S3 Bucket: Resized Images
+  # 2️⃣ S3 Bucket for resized/processed images
   ProcessedBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref ProcessedBucketName
 
-  # 🔐 3. IAM Role for Lambda
+  # 3️⃣ IAM Role for Lambda to access S3 and logs
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -60,7 +69,7 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
 
-  # 🧠 4. Lambda Function
+  # 4️⃣ Lambda function for image processing
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -78,7 +87,7 @@ Resources:
           SOURCE_BUCKET: !Ref UploadBucketName
           DEST_BUCKET: !Ref ProcessedBucketName
 
-  # 🔁 5. Permission to allow S3 to trigger Lambda
+  # 5️⃣ Grant S3 permission to invoke Lambda
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -86,21 +95,6 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
       SourceArn: !Sub arn:aws:s3:::${UploadBucketName}
-
-  # 🔔 6. Add S3 Notification to trigger Lambda on .jpg upload
-  S3EventNotification:
-    Type: AWS::S3::BucketNotification
-    Properties:
-      Bucket: !Ref UploadBucket
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:Put
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-            Function: !GetAtt LambdaFunction.Arn
 
 Outputs:
   UploadBucketName:
