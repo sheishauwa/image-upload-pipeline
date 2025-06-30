@@ -1,22 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Image Upload and Processing Pipeline with S3 and Lambda
+Description: Image Upload and Resize Pipeline (No API Gateway)
 
 Parameters:
   UploadBucketName:
     Type: String
-    Description: Name of the raw image upload S3 bucket
+    Description: Bucket for user-uploaded images
 
   ProcessedBucketName:
     Type: String
-    Description: Name of the processed/resized image S3 bucket
+    Description: Bucket for resized images
 
   ArtifactBucketName:
     Type: String
-    Description: Bucket name where the Lambda zip is stored
+    Description: Bucket holding Lambda zip
 
   ArtifactKey:
     Type: String
-    Description: Path to the Lambda function zip file in S3
+    Description: Path to Lambda zip in S3
 
 Resources:
   UploadBucket:
@@ -32,7 +32,7 @@ Resources:
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: photoProcessorLambdaRole
+      RoleName: !Sub "photoProcessorLambdaRole-${AWS::StackName}"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -41,7 +41,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: S3AccessPolicy
+        - PolicyName: LambdaS3LogsAccess
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -60,7 +60,7 @@ Resources:
   ImageProcessorFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: ImageResizerFunction
+      FunctionName: !Sub "ImageResizerFunction-${AWS::StackName}"
       Handler: resize.lambda_handler
       Runtime: python3.11
       Timeout: 10
@@ -83,13 +83,13 @@ Resources:
 
 Outputs:
   UploadBucket:
-    Description: The raw image upload S3 bucket
+    Description: Raw image upload bucket
     Value: !Ref UploadBucketName
 
   ProcessedBucket:
-    Description: The processed image output S3 bucket
+    Description: Resized image output bucket
     Value: !Ref ProcessedBucketName
 
   LambdaFunctionName:
-    Description: Name of the Lambda function
+    Description: Lambda Function that resizes the image
     Value: !Ref ImageProcessorFunction
