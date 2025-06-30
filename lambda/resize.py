@@ -11,16 +11,23 @@ def lambda_handler(event, context):
 
     for record in event['Records']:
         key = record['s3']['object']['key']
-        image_obj = s3.get_object(Bucket=source_bucket, Key=key)
-        image = Image.open(image_obj['Body'])
+        response = s3.get_object(Bucket=source_bucket, Key=key)
+        image = Image.open(response['Body'])
 
-        # Resize
-        image = image.resize((800, 800))
+        image = image.resize((800, 800))  # Resize to 800x800
 
         buffer = io.BytesIO()
         image.save(buffer, 'JPEG')
         buffer.seek(0)
 
-        s3.put_object(Bucket=destination_bucket, Key=key, Body=buffer, ContentType='image/jpeg')
+        s3.put_object(
+            Bucket=destination_bucket,
+            Key=key,
+            Body=buffer,
+            ContentType='image/jpeg'
+        )
 
-    return {'statusCode': 200, 'body': 'Image resized and uploaded.'}
+    return {
+        'statusCode': 200,
+        'body': 'Image resized and uploaded successfully.'
+    }
