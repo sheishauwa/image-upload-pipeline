@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Image Upload & Resize Pipeline using S3 + Lambda
- 
+  
 Parameters:
   UploadBucketName:
     Type: String
