@@ -4,10 +4,10 @@ Description: Serverless image processing pipeline using S3 and Lambda
 Parameters:
   UploadBucketName:
     Type: String
-    Default: my-photo-blog-uploads
+    Default: my-photo-blog-uploads-hauwa
   ProcessedBucketName:
     Type: String
-    Default: my-photo-blog-processed
+    Default: my-photo-blog-processed-hauwa
 
 Resources:
 
@@ -56,8 +56,8 @@ Resources:
       MemorySize: 256
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: !Ref UploadBucketName
-        S3Key: lambda/resize.zip
+        S3Bucket: hauwa-lambda-artifacts  # ✅ This must already exist in S3!
+        S3Key: resize.zip                 # ✅ This must already be uploaded by GitHub Actions
       Environment:
         Variables:
           SOURCE_BUCKET: !Ref UploadBucketName
@@ -71,16 +71,15 @@ Resources:
       Principal: s3.amazonaws.com
       SourceArn: !GetAtt UploadBucket.Arn
 
-  S3EventNotification:
-    Type: Custom::S3Event
-    DependsOn: LambdaInvokePermission
-    Properties:
-      ServiceToken: !GetAtt LambdaFunction.Arn
-
 Outputs:
   UploadBucket:
+    Description: Raw image upload bucket
     Value: !Ref UploadBucketName
+
   ProcessedBucket:
+    Description: Resized images output bucket
     Value: !Ref ProcessedBucketName
+
   LambdaFunctionName:
+    Description: Lambda function that resizes images
     Value: !Ref LambdaFunction
