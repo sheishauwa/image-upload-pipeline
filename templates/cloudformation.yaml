@@ -16,8 +16,6 @@ Parameters:
     Description: Key (path) to the Lambda ZIP in the artifact bucket
 
 Resources:
-
-  # 1️⃣ S3 Bucket for raw image uploads
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -32,13 +30,11 @@ Resources:
                     Value: .jpg
             Function: !GetAtt LambdaFunction.Arn
 
-  # 2️⃣ S3 Bucket for resized/processed images
   ProcessedBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref ProcessedBucketName
 
-  # 3️⃣ IAM Role for Lambda to access S3 and logs
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -69,7 +65,6 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
 
-  # 4️⃣ Lambda function for image processing
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -86,9 +81,9 @@ Resources:
         Variables:
           SOURCE_BUCKET: !Ref UploadBucketName
           DEST_BUCKET: !Ref ProcessedBucketName
-Layers:
+      Layers:
         - arn:aws:lambda:eu-north-1:770693421928:layer:Klayers-p311-Pillow:1
-  # 5️⃣ Grant S3 permission to invoke Lambda
+
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -98,9 +93,14 @@ Layers:
       SourceArn: !Sub arn:aws:s3:::${UploadBucketName}
 
 Outputs:
-  UploadBucketName:
+  UploadBucket:
+    Description: Bucket for original images
     Value: !Ref UploadBucketName
-  ProcessedBucketName:
+
+  ProcessedBucket:
+    Description: Bucket for resized images
     Value: !Ref ProcessedBucketName
+
   LambdaFunctionName:
+    Description: The name of the deployed Lambda function
     Value: !Ref LambdaFunction
