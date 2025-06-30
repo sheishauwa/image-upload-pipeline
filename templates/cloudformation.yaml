@@ -1,1 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-photo-blog-uploads
+
+  ProcessedBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-photo-blog-processed
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: photoProcessorLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ["s3:*", "logs:*"]
+                Resource: "*"
+
+  ImageProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ImageResizerFunction
+      Handler: resize.lambda_handler
+      Runtime: python3.11
+      Timeout: 10
+      Role: !GetAtt LambdaRole.Arn
+      Code:
+        S3Bucket: my-photo-blog-uploads
+        S3Key: lambda/resize.zip
+      Environment:
+        Variables:
+          SOURCE_BUCKET: my-photo-blog-uploads
+          DEST_BUCKET: my-photo-blog-processed
+
+  S3Event:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ImageProcessorFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+Outputs:
+  UploadBucket:
+    Value: !Ref UploadBucket
+  ProcessedBucket:
+    Value: !Ref ProcessedBucket
 
