@@ -1,8 +1,9 @@
-name: Deploy Image Upload Pipeline
+name: Deploy Image Upload Stack
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
@@ -14,55 +15,37 @@ jobs:
       ARTIFACT_KEY: lambda_function.zip
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Build Lambda package with Pillow (Amazon Linux compatible)
-      run: |
-        docker run --rm -v "$PWD":/var/task -w /var/task \
-          amazonlinux:2023 bash -c "\
-            yum install -y python3-pip zip && \
-            pip3 install -r requirements.txt -t lambda/ && \
-            cd lambda && \
-            zip -r /var/task/${{ env.ARTIFACT_KEY }} ."
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Create artifact bucket if not exists
-      run: |
-        aws s3api head-bucket --bucket $ARTIFACT_BUCKET 2>/dev/null || \
-        aws s3 mb s3://$ARTIFACT_BUCKET --region $AWS_REGION
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Deploy CloudFormation Stack
+        run: |
+          aws cloudformation deploy \
+            --template-file templates/cloudformation.yaml \
+            --stack-name ImageUploadStack \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              UploadBucketName=image-upload-raw-hauwa \
+              ProcessedBucketName=image-upload-processed-hauwa \
+              ArtifactBucketName=$ARTIFACT_BUCKET \
+              ArtifactKey=$ARTIFACT_KEY \
+            --region $AWS_REGION
 
-    - name: Upload Lambda zip to S3
-      run: |
-        aws s3 cp $ARTIFACT_KEY s3://$ARTIFACT_BUCKET/$ARTIFACT_KEY --region $AWS_REGION
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-    - name: Deploy CloudFormation stack
-      run: |
-        aws cloudformation deploy \
-          --template-file templates/cloudformation.yaml \
-          --stack-name ImageUploadStack \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides \
-            UploadBucketName=image-upload-raw-hauwa \
-            ProcessedBucketName=image-upload-processed-hauwa \
-            ArtifactBucketName=$ARTIFACT_BUCKET \
-            ArtifactKey=$ARTIFACT_KEY \
-          --region $AWS_REGION
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-    - name: Debug CloudFormation errors (if any)
-      if: failure()
-      run: |
-        aws cloudformation describe-stack-events \
-          --stack-name ImageUploadStack \
-          --region $AWS_REGION --max-items 10
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Debug CloudFormation failure
+        if: failure()
+        run: |
+          echo "=== CloudFormation Logs ==="
+          aws cloudformation describe-stack-events \
+            --stack-name ImageUploadStack \
+            --region $AWS_REGION \
+            --max-items 15
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
