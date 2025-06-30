@@ -85,7 +85,7 @@ Resources:
           SOURCE_BUCKET: !Ref UploadBucketName
           DEST_BUCKET: !Ref ProcessedBucketName
       Layers:
-        - arn:aws:lambda:eu-north-1:770693421928:layer:Klayers-p311-Pillow:1  # ✅ Public Pillow Layer for Python 3.11
+        - arn:aws:lambda:eu-north-1:770693421928:layer:Klayers-p311-Pillow:1
 
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
