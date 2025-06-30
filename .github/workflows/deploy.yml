@@ -16,12 +16,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install Pillow and zip Lambda
+        - name: Build Lambda package with Pillow in Amazon Linux
       run: |
-        pip install pillow -t lambda/
-        cd lambda
-        zip -r ../resize.zip .
-      shell: bash
+        docker run --rm -v "$PWD":/var/task -w /var/task \
+          amazonlinux:2023 bash -c "\
+            yum install -y python3-pip zip && \
+            pip3 install pillow -t lambda/ && \
+            cd lambda && \
+            zip -r /var/task/resize.zip ."
+
 
     - name: Create Artifact Bucket if not exists
       run: |
