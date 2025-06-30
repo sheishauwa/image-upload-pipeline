@@ -4,34 +4,22 @@ Description: Image Upload & Resize Pipeline using S3 + Lambda
 Parameters:
   UploadBucketName:
     Type: String
-    Description: Bucket name where users upload original images
-
+    Description: Bucket for uploaded original images
   ProcessedBucketName:
     Type: String
-    Description: Bucket name for resized images
-
+    Description: Bucket for resized output images
   ArtifactBucketName:
     Type: String
-    Description: S3 bucket name where the Lambda ZIP is stored
-
+    Description: S3 bucket containing Lambda ZIP
   ArtifactKey:
     Type: String
-    Description: Key (path) to the Lambda ZIP in the artifact bucket
+    Description: Key of Lambda ZIP in artifact bucket
 
 Resources:
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref UploadBucketName
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:Put
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-            Function: !GetAtt LambdaFunction.Arn
 
   ProcessedBucket:
     Type: AWS::S3::Bucket
@@ -50,7 +38,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: LambdaS3AccessPolicy
+        - PolicyName: LambdaS3Access
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -95,15 +83,29 @@ Resources:
       Principal: s3.amazonaws.com
       SourceArn: !Sub arn:aws:s3:::${UploadBucketName}
 
+  UploadTrigger:
+    Type: AWS::S3::BucketNotification
+    Properties:
+      Bucket: !Ref UploadBucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpg
+            Function: !GetAtt LambdaFunction.Arn
+
 Outputs:
   UploadBucket:
-    Description: Bucket for original images
     Value: !Ref UploadBucketName
+    Description: Raw upload bucket
 
   ProcessedBucket:
-    Description: Bucket for resized images
     Value: !Ref ProcessedBucketName
+    Description: Resized image output bucket
 
   LambdaFunctionName:
-    Description: The name of the deployed Lambda function
     Value: !Ref LambdaFunction
+    Description: Lambda function for resizing
