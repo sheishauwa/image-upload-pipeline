@@ -86,7 +86,8 @@ Resources:
         Variables:
           SOURCE_BUCKET: !Ref UploadBucketName
           DEST_BUCKET: !Ref ProcessedBucketName
-
+Layers:
+        - arn:aws:lambda:eu-north-1:770693421928:layer:Klayers-p311-Pillow:1
   # 5️⃣ Grant S3 permission to invoke Lambda
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
